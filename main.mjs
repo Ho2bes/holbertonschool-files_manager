@@ -1,19 +1,21 @@
-// main.js
+// main.mjs
 import redisClient from './utils/redis.mjs';
 
 (async () => {
-  // Vérifie si Redis est bien connecté
-  console.log(redisClient.isAlive()); // Affiche true si la connexion est active
+  // Assure-toi que Redis est bien prêt avant d'interagir avec
+  const isRedisAlive = await redisClient.isAlive();
+  console.log(isRedisAlive); // true ou false
 
-  // Essaie de récupérer une clé qui n'existe pas encore
-  console.log(await redisClient.get('myKey')); // Affiche null
+  if (!isRedisAlive) {
+    console.error('Redis is not connected.');
+    return;
+  }
 
-  // Stocke une clé avec une durée de 5 secondes
+  console.log(await redisClient.get('myKey'));
   await redisClient.set('myKey', 12, 5);
-  console.log(await redisClient.get('myKey')); // Affiche 12
+  console.log(await redisClient.get('myKey'));
 
-  // Attends 10 secondes, puis essaie de lire la clé (elle a expiré)
   setTimeout(async () => {
-    console.log(await redisClient.get('myKey')); // Affiche null
-  }, 10000); // 10 secondes
+    console.log(await redisClient.get('myKey'));
+  }, 10000);
 })();
