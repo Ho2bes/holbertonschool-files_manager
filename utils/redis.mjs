@@ -14,8 +14,13 @@ class RedisClient {
     });
   }
 
-  isAlive() {
-    return this.client.isOpen;
+  async isAlive() {
+    try {
+      await this.client.ping();
+      return true;
+    } catch (err) {
+      return false;
+    }
   }
 
   async get(key) {
