@@ -26,15 +26,15 @@ class FilesController {
     }
     if (type !== 'folder' && !data) return res.status(400).json({ error: 'Missing data' });
 
+    let parentObjectId = null;
     if (parentId !== '0') {
-      let parentObjId;
       try {
-        parentObjId = new ObjectId(parentId);
+        parentObjectId = new ObjectId(parentId);
       } catch (err) {
         return res.status(400).json({ error: 'Parent not found' });
       }
 
-      const parent = await dbClient.db.collection('files').findOne({ _id: parentObjId });
+      const parent = await dbClient.db.collection('files').findOne({ _id: parentObjectId });
       if (!parent) return res.status(400).json({ error: 'Parent not found' });
       if (parent.type !== 'folder') return res.status(400).json({ error: 'Parent is not a folder' });
     }
@@ -44,7 +44,7 @@ class FilesController {
       name,
       type,
       isPublic,
-      parentId: parentId === '0' ? '0' : new ObjectId(parentId),
+      parentId: parentId === '0' ? '0' : parentObjectId,
     };
 
     if (type === 'folder') {
@@ -59,21 +59,24 @@ class FilesController {
       });
     }
 
-    mkdirSync(folderPath, { recursive: true });
-    const localPath = path.join(folderPath, uuidv4());
-    writeFileSync(localPath, data, { encoding: 'base64' });
+    try {
+      mkdirSync(folderPath, { recursive: true });
+      const localPath = path.join(folderPath, uuidv4());
+      writeFileSync(localPath, data, { encoding: 'base64' });
+      fileDocument.localPath = localPath;
 
-    fileDocument.localPath = localPath;
-
-    const result = await dbClient.db.collection('files').insertOne(fileDocument);
-    return res.status(201).json({
-      id: result.insertedId,
-      userId,
-      name,
-      type,
-      isPublic,
-      parentId,
-    });
+      const result = await dbClient.db.collection('files').insertOne(fileDocument);
+      return res.status(201).json({
+        id: result.insertedId,
+        userId,
+        name,
+        type,
+        isPublic,
+        parentId,
+      });
+    } catch (err) {
+      return res.status(500).json({ error: 'File processing error' });
+    }
   }
 
   static async getShow(req, res) {
@@ -85,14 +88,23 @@ class FilesController {
 
     try {
       const fileId = new ObjectId(req.params.id);
-      const userFiles = await dbClient.db.collection('files').findOne({
+      const file = await dbClient.db.collection('files').findOne({
         _id: fileId,
         userId: new ObjectId(userId),
       });
 
-      if (!userFiles) return res.status(404).json({ error: 'Not found' });
-      return res.status(200).json(userFiles);
-    } catch (error) {
+      if (!file) return res.status(404).json({ error: 'Not found' });
+
+      const response = {
+        id: file._id,
+        userId: userId,
+        name: file.name,
+        type: file.type,
+        isPublic: file.isPublic,
+        parentId: file.parentId,
+      };
+      return res.status(200).json(response);
+    } catch (err) {
       return res.status(404).json({ error: 'Not found' });
     }
   }
@@ -126,8 +138,15 @@ class FilesController {
         { $limit: pageSize },
       ]).toArray();
 
-      return res.status(200).json(files);
-    } catch (error) {
+      return res.status(200).json(files.map((file) => ({
+        id: file._id,
+        userId,
+        name: file.name,
+        type: file.type,
+        isPublic: file.isPublic,
+        parentId: file.parentId,
+      })));
+    } catch (err) {
       return res.status(500).json({ error: 'Database query failed' });
     }
   }
