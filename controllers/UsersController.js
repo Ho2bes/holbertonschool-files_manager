@@ -1,4 +1,3 @@
-// controllers/UsersController.js
 import { ObjectId } from 'mongodb';
 import sha1 from 'sha1';
 import dbClient from '../utils/db';
@@ -36,7 +35,7 @@ class UsersController {
     const token = req.headers['x-token'] || req.headers['X-Token'];
 
     if (!token) {
-      res.status(401).json({ error: 'Unauthorized' });
+      return res.status(401).json({ error: 'Unauthorized' });
     }
 
     const key = `auth_${token}`;
