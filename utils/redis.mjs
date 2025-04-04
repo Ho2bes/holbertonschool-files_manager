@@ -9,20 +9,18 @@ class RedisClient {
       console.log(`Redis client not connected to the server: ${err}`);
     });
 
-    // Connexion explicite (important avec redis@4)
-    this.client.connect().catch((err) => {
-      console.error('Redis connection error:', err);
+    this.client.on('connect', () => {
+      console.log('Redis client connected to the server');
     });
 
-    // Promisify les méthodes
+    // Promisify les méthodes Redis
     this.getAsync = promisify(this.client.get).bind(this.client);
     this.setAsync = promisify(this.client.set).bind(this.client);
     this.delAsync = promisify(this.client.del).bind(this.client);
   }
 
-  // Vérifie si Redis est prêt
   isAlive() {
-    return this.client.connected || this.client.status === 'ready';
+    return this.client.connected;
   }
 
   async get(key) {
